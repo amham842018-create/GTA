@@ -1,0 +1,16 @@
+{
+  "name": "VICE CITY LEGENDS 6",
+  "short_name": "VICE CITY",
+  "start_url": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#0d031a",
+  "theme_color": "#ff2a85",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
