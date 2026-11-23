@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#ff2a85" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Vice Leonida 6" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="./icon.svg" />
+  <link rel="apple-touch-icon" href="./icon.svg" />
+  <title>VICE LEONIDA 6</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; touch-action: none; }
+    html, body {
+      width: 100%; height: 100%; overflow: hidden;
+      background: #0d031a; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      color: #fff;
+    }
+    canvas { display: block; width: 100%; height: 100%; }
+
+    /* HUD */
+    #hud {
+      position: fixed; top: env(safe-area-inset-top, 10px); left: 12px; right: 12px;
+      display: flex; justify-content: space-between; align-items: flex-start;
+      pointer-events: none; z-index: 10;
+    }
+    .hud-box {
+      background: rgba(13, 3, 26, 0.78);
+      border: 1px solid rgba(255, 42, 133, 0.5);
+      border-radius: 12px; padding: 8px 14px;
+      backdrop-filter: blur(6px);
+      box-shadow: 0 0 15px rgba(255, 42, 133, 0.25);
+    }
+    .stat-row { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; font-size: 13px; font-weight: bold; }
+    .bar-wrap { width: 110px; height: 9px; background: rgba(255,255,255,0.15); border-radius: 6px; overflow: hidden; }
+    .bar-fill { height: 100%; transition: width 0.2s; }
+    #hp-bar { background: linear-gradient(90deg, #ff2a55, #ff7b00); width: 100%; }
+    #arm-bar { background: linear-gradient(90deg, #00a2ff, #00f0ff); width: 50%; }
+    #money-val { color: #39ff14; font-size: 16px; letter-spacing: 0.5px; }
+    #stars { color: #ffd700; font-size: 16px; letter-spacing: 2px; }
+    #weapon-badge { color: #00f0ff; font-size: 13px; margin-top: 3px; }
+
+    .top-actions { display: flex; gap: 8px; pointer-events: auto; }
+    .btn-hud {
+      background: linear-gradient(135deg, #ff2a85, #7928ca);
+      border: 1px solid rgba(255,255,255,0.3); color: #fff;
+      padding: 8px 12px; border-radius: 10px; font-weight: bold; font-size: 12px;
+      cursor: pointer; box-shadow: 0 4px 12px rgba(255,42,133,0.35);
+    }
+    .btn-hud:active { transform: scale(0.95); }
+
+    /* Radar */
+    #radar {
+      position: fixed; bottom: calc(env(safe-area-inset-bottom, 12px) + 12px); right: 16px;
+      width: 115px; height: 115px; border-radius: 50%;
+      border: 2px solid #00f0ff; background: rgba(10, 4, 24, 0.85);
+      box-shadow: 0 0 18px rgba(0, 240, 255, 0.35);
+      z-index: 10; pointer-events: none;
+    }
+
+    /* Mobile Controls */
+    #touch-controls {
+      position: fixed; inset: 0; pointer-events: none; z-index: 15;
+    }
+    #joy-zone {
+      position: fixed; bottom: 22px; left: 22px; width: 130px; height: 130px;
+      border-radius: 50%; background: rgba(255,255,255,0.08);
+      border: 2px solid rgba(0, 240, 255, 0.35); pointer-events: auto;
+    }
+    #joy-knob {
+      position: absolute; top: 50%; left: 50%; width: 52px; height: 52px;
+      margin: -26px 0 0 -26px; border-radius: 50%;
+      background: radial-gradient(circle, #00f0ff, #ff2a85);
+      box-shadow: 0 0 12px #00f0ff;
+    }
+    .action-pad {
+      position: fixed; bottom: 24px; right: 148px;
+      display: grid; grid-template-columns: repeat(2, 58px); gap: 10px;
+      pointer-events: auto;
+    }
+    .act-btn {
+      width: 58px; height: 58px; border-radius: 50%;
+      background: rgba(20, 8, 38, 0.82); border: 2px solid #ff2a85;
+      color: #fff; font-size: 12px; font-weight: bold;
+      display: flex; align-items: center; justify-content: center; text-align: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    }
+    .act-btn:active { background: #ff2a85; transform: scale(0.92); }
+
+    /* Start / Shop / Install Modal */
+    .overlay {
+      position: fixed; inset: 0; background: rgba(9, 2, 20, 0.9);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 30; padding: 16px;
+    }
+    .modal {
+      background: linear-gradient(160deg, #1b0636, #0d031a);
+      border: 2px solid #ff2a85; border-radius: 18px;
+      max-width: 440px; width: 100%; padding: 22px; text-align: center;
+      box-shadow: 0 0 35px rgba(255, 42, 133, 0.45);
+    }
+    .modal h1 {
+      font-size: 28px; margin-bottom: 8px;
+      background: linear-gradient(90deg, #ffe600, #ff2a85, #00f0ff);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .modal p { font-size: 14px; color: #d8c8f0; line-height: 1.6; margin-bottom: 16px; }
+    .primary-btn {
+      width: 100%; padding: 13px; border: none; border-radius: 12px;
+      background: linear-gradient(90deg, #ff2a85, #ff7b00);
+      color: #fff; font-size: 16px; font-weight: bold; cursor: pointer;
+      margin-bottom: 10px; box-shadow: 0 5px 18px rgba(255,42,133,0.4);
+    }
+    .secondary-btn {
+      width: 100%; padding: 11px; border: 1px solid #00f0ff; border-radius: 12px;
+      background: rgba(0, 240, 255, 0.12); color: #00f0ff;
+      font-size: 14px; font-weight: bold; cursor: pointer; margin-bottom: 8px;
+    }
+    .shop-item {
+      display: flex; justify-content: space-between; align-items: center;
+      background: rgba(255,255,255,0.06); padding: 10px 12px; border-radius: 10px;
+      margin-bottom: 8px; border: 1px solid rgba(255,255,255,0.12);
+    }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <div id="hud">
+    <div class="hud-box">
+      <div class="stat-row">❤️ <div class="bar-wrap"><div id="hp-bar" class="bar-fill"></div></div></div>
+      <div class="stat-row">🛡️ <div class="bar-wrap"><div id="arm-bar" class="bar-fill"></div></div></div>
+      <div id="money-val">$500</div>
+      <div id="stars">☆☆☆☆☆</div>
+      <div id="weapon-badge">السلاح: مسدس 9mm</div>
+    </div>
+    <div class="top-actions">
+      <button class="btn-hud" onclick="openShop()">متجر الأسلحة 🛒</button>
+      <button class="btn-hud" id="install-btn" onclick="triggerInstall()">تثبيت التطبيق 📲</button>
+    </div>
+  </div>
+
+  <canvas id="radar" width="115" height="115"></canvas>
+
+  <div id="touch-controls">
+    <div id="joy-zone"><div id="joy-knob"></div></div>
+    <div class="action-pad">
+      <button class="act-btn" ontouchstart="fireWeapon()" onclick="fireWeapon()">إطلاق 🔥</button>
+      <button class="act-btn" ontouchstart="toggleCar()" onclick="toggleCar()">سيارة 🚗</button>
+      <button class="act-btn" ontouchstart="switchWeapon()" onclick="switchWeapon()">سلاح 🔄</button>
+      <button class="act-btn" ontouchstart="useNitro()" onclick="useNitro()">تيربو ⚡</button>
+    </div>
+  </div>
+
+  <!-- Start Screen -->
+  <div id="start-modal" class="overlay">
+    <div class="modal">
+      <h1>VICE LEONIDA 6</h1>
+      <p>أهلاً بك في مدينة ليونيدا الساحلية! قُد السيارات الرياضية، اهرب من مطاردات الشرطة ذات الـ 5 نجوم، واجمع الأموال والأسلحة.</p>
+      <button class="primary-btn" onclick="startGame()">ابدأ اللعب الآن ▶️</button>
+      <button class="secondary-btn" onclick="triggerInstall()">تثبيت كتطبيق على الهاتف 📲</button>
+      <p id="install-hint" style="font-size:12px; color:#00f0ff; margin-top:6px;">للتثبيت اليدوي: افتح قائمة المتصفح واختر "إضافة إلى الشاشة الرئيسية" (Add to Home Screen)</p>
+    </div>
+  </div>
+
+  <!-- Shop Modal -->
+  <div id="shop-modal" class="overlay hidden">
+    <div class="modal">
+      <h1>متجر الأسلحة والدروع 🛒</h1>
+      <div class="shop-item">
+        <span>🔫 رشاش UZI سريع ($300)</span>
+        <button class="btn-hud" onclick="buyItem('uzi', 300)">شراء</button>
+      </div>
+      <div class="shop-item">
+        <span>🚀 قاذف صواريخ RPG ($800)</span>
+        <button class="btn-hud" onclick="buyItem('rpg', 800)">شراء</button>
+      </div>
+      <div class="shop-item">
+        <span>🛡️ درع كامل + صحة ($200)</span>
+        <button class="btn-hud" onclick="buyItem('armor', 200)">شراء</button>
+      </div>
+      <div class="shop-item">
+        <span>⭐ رشوة الشرطة - تصفير النجوم ($400)</span>
+        <button class="btn-hud" onclick="buyItem('clear', 400)">شراء</button>
+      </div>
+      <button class="secondary-btn" onclick="closeShop()">إغلاق المتجر</button>
+    </div>
+  </div>
+
+  <script>
+    // Register Service Worker for Offline App Mode
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      });
+    }
+
+    let deferredPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+    });
+
+    function triggerInstall() {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then(() => { deferredPrompt = null; });
+      } else {
+        alert('لتثبيت اللعبة كتطبيق على هاتفك:
+
+• أندرويد (Chrome): اضغط على النقاط الثلاث (⋮) بالأعلى ثم اختر "تثبيت التطبيق" أو "إضافة إلى الشاشة الرئيسية".
+• آيفون (Safari): اضغط على زر المشاركة (⬆️) بالأسفل ثم اختر "إضافة إلى الصفحة الرئيسية".');
+      }
+    }
+
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const radar = document.getElementById('radar');
+    const rctx = radar.getContext('2d');
+
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    const WORLD = 2800;
+    let running = false;
+    const keys = {};
+    const joy = { active: false, dx: 0, dy: 0 };
+
+    const player = {
+      x: 1400, y: 1400, angle: 0, speed: 0,
+      hp: 100, armor: 50, money: 500, wanted: 0,
+      inCar: null, weapons: ['pistol'], wIdx: 0
+    };
+
+    const weaponSpecs = {
+      pistol: { name: 'مسدس 9mm', dmg: 35, speed: 14, radius: 4, color: '#ffe600', boom: false },
+      uzi: { name: 'رشاش UZI', dmg: 25, speed: 18, radius: 3, color: '#00f0ff', boom: false },
+      rpg: { name: 'قاذف RPG', dmg: 150, speed: 11, radius: 7, color: '#ff4500', boom: true }
+    };
+
+    const cars = [];
+    const peds = [];
+    const bullets = [];
+    const particles = [];
+    const pickups = [];
+    let checkpoint = { x: 1800, y: 1100 };
+
+    const carColors = ['#ff2a85', '#00f0ff', '#ffe600', '#39ff14', '#ff6b00', '#b829ff'];
+    for (let i = 0; i < 22; i++) {
+      cars.push({
+        x: 300 + Math.random() * (WORLD - 600),
+        y: 300 + Math.random() * (WORLD - 600),
+        angle: Math.random() * Math.PI * 2,
+        speed: 0,
+        color: carColors[i % carColors.length],
+        isPolice: i < 5,
+        hp: 120
+      });
+    }
+
+    for (let i = 0; i < 35; i++) {
+      peds.push({
+        x: 250 + Math.random() * (WORLD - 500),
+        y: 250 + Math.random() * (WORLD - 500),
+        angle: Math.random() * Math.PI * 2,
+        color: i % 2 === 0 ? '#ff99cc' : '#99ffff',
+        hp: 50
+      });
+    }
+
+    function spawnPickups() {
+      const types = ['cash', 'hp', 'armor', 'star'];
+      for (let i = 0; i < 24; i++) {
+        pickups.push({
+          x: 250 + Math.random() * (WORLD - 500),
+          y: 250 + Math.random() * (WORLD - 500),
+          type: types[i % types.length]
+        });
+      }
+    }
+    spawnPickups();
+
+    window.addEventListener('keydown', e => {
+      keys[e.key.toLowerCase()] = true;
+      if (e.key.toLowerCase() === 'e' || e.key.toLowerCase() === 'f') toggleCar();
+      if (e.key.toLowerCase() === 'q') switchWeapon();
+      if (e.key === ' ') fireWeapon();
+    });
+    window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+    canvas.addEventListener('mousedown', e => {
+      if (!running) return;
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left - canvas.width / 2;
+      const my = e.clientY - rect.top - canvas.height / 2;
+      player.angle = Math.atan2(my, mx);
+      fireWeapon();
+    });
+
+    // Virtual Joystick
+    const joyZone = document.getElementById('joy-zone');
+    const joyKnob = document.getElementById('joy-knob');
+    joyZone.addEventListener('touchstart', e => { joy.active = true; updateJoy(e.touches[0]); });
+    joyZone.addEventListener('touchmove', e => { if (joy.active) updateJoy(e.touches[0]); });
+    joyZone.addEventListener('touchend', () => {
+      joy.active = false; joy.dx = 0; joy.dy = 0;
+      joyKnob.style.transform = 'translate(0px, 0px)';
+    });
+    function updateJoy(t) {
+      const r = joyZone.getBoundingClientRect();
+      const cx = r.left + r.width / 2;
+      const cy = r.top + r.height / 2;
+      let dx = t.clientX - cx;
+      let dy = t.clientY - cy;
+      const dist = Math.hypot(dx, dy);
+      const max = 45;
+      if (dist > max) { dx = (dx / dist) * max; dy = (dy / dist) * max; }
+      joyKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+      joy.dx = dx / max;
+      joy.dy = dy / max;
+    }
+
+    function startGame() {
+      document.getElementById('start-modal').classList.add('hidden');
+      running = true;
+      requestAnimationFrame(loop);
+    }
+
+    function openShop() { document.getElementById('shop-modal').classList.remove('hidden'); }
+    function closeShop() { document.getElementById('shop-modal').classList.add('hidden'); }
+
+    function buyItem(item, cost) {
+      if (player.money < cost) return alert('رصيدك غير كافٍ! اجمع المال أو أكمل نقاط التفتيش.');
+      player.money -= cost;
+      if (item === 'uzi' && !player.weapons.includes('uzi')) { player.weapons.push('uzi'); player.wIdx = player.weapons.indexOf('uzi'); }
+      if (item === 'rpg' && !player.weapons.includes('rpg')) { player.weapons.push('rpg'); player.wIdx = player.weapons.indexOf('rpg'); }
+      if (item === 'armor') { player.hp = 100; player.armor = 100; }
+      if (item === 'clear') { player.wanted = 0; }
+      updateHUD();
+      closeShop();
+    }
+
+    function switchWeapon() {
+      player.wIdx = (player.wIdx + 1) % player.weapons.length;
+      updateHUD();
+    }
+
+    function toggleCar() {
+      if (player.inCar) {
+        player.x = player.inCar.x + Math.cos(player.inCar.angle + Math.PI / 2) * 34;
+        player.y = player.inCar.y + Math.sin(player.inCar.angle + Math.PI / 2) * 34;
+        player.inCar = null;
+        return;
+      }
+      let best = null, bestD = 75;
+      for (const c of cars) {
+        const d = Math.hypot(c.x - player.x, c.y - player.y);
+        if (d < bestD) { best = c; bestD = d; }
+      }
+      if (best) {
+        player.inCar = best;
+        if (best.isPolice) player.wanted = Math.min(5, player.wanted + 2);
+      }
+    }
+
+    function useNitro() {
+      if (player.inCar) {
+        player.inCar.speed = 13;
+        addExplosion(player.inCar.x, player.inCar.y, '#00f0ff', 10);
+      }
+    }
+
+    function fireWeapon() {
+      if (!running) return;
+      const wKey = player.weapons[player.wIdx];
+      const spec = weaponSpecs[wKey];
+      const origin = player.inCar || player;
+      const ang = origin.angle;
+      bullets.push({
+        x: origin.x + Math.cos(ang) * 24,
+        y: origin.y + Math.sin(ang) * 24,
+        vx: Math.cos(ang) * spec.speed,
+        vy: Math.sin(ang) * spec.speed,
+        life: 65,
+        spec
+      });
+      if (wKey === 'uzi') {
+        setTimeout(() => {
+          bullets.push({
+            x: origin.x + Math.cos(ang) * 24,
+            y: origin.y + Math.sin(ang) * 24,
+            vx: Math.cos(ang + 0.05) * spec.speed,
+            vy: Math.sin(ang + 0.05) * spec.speed,
+            life: 65,
+            spec
+          });
+        }, 80);
+      }
+    }
+
+    function addExplosion(x, y, color = '#ff6b00', count = 22) {
+      for (let i = 0; i < count; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const s = 1 + Math.random() * 5;
+        particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 30, color });
+      }
+    }
+
+    function updateHUD() {
+      document.getElementById('hp-bar').style.width = Math.max(0, player.hp) + '%';
+      document.getElementById('arm-bar').style.width = Math.max(0, player.armor) + '%';
+      document.getElementById('money-val').textContent = '$' + player.money;
+      document.getElementById('stars').textContent = '★'.repeat(player.wanted) + '☆'.repeat(5 - player.wanted);
+      document.getElementById('weapon-badge').textContent = 'السلاح: ' + weaponSpecs[player.weapons[player.wIdx]].name;
+    }
+
+    function update() {
+      let ix = joy.dx, iy = joy.dy;
+      if (keys['w'] || keys['arrowup']) iy -= 1;
+      if (keys['s'] || keys['arrowdown']) iy += 1;
+      if (keys['a'] || keys['arrowleft']) ix -= 1;
+      if (keys['d'] || keys['arrowright']) ix += 1;
+
+      if (player.inCar) {
+        const c = player.inCar;
+        if (iy < -0.1) c.speed = Math.min(9.5, c.speed + 0.25);
+        else if (iy > 0.1) c.speed = Math.max(-4.5, c.speed - 0.25);
+        else c.speed *= 0.96;
+
+        if (Math.abs(c.speed) > 0.3) {
+          c.angle += ix * 0.055 * (c.speed > 0 ? 1 : -1);
+        }
+        c.x = Math.max(120, Math.min(WORLD - 120, c.x + Math.cos(c.angle) * c.speed));
+        c.y = Math.max(120, Math.min(WORLD - 120, c.y + Math.sin(c.angle) * c.speed));
+        player.x = c.x; player.y = c.y; player.angle = c.angle;
+      } else {
+        const mag = Math.hypot(ix, iy);
+        if (mag > 0.1) {
+          player.angle = Math.atan2(iy, ix);
+          player.x = Math.max(120, Math.min(WORLD - 120, player.x + (ix / mag) * 3.6));
+          player.y = Math.max(120, Math.min(WORLD - 120, player.y + (iy / mag) * 3.6));
+        }
+      }
+
+      // Checkpoint mission
+      if (Math.hypot(player.x - checkpoint.x, player.y - checkpoint.y) < 55) {
+        player.money += 250;
+        player.hp = Math.min(100, player.hp + 20);
+        addExplosion(checkpoint.x, checkpoint.y, '#ffe600', 25);
+        checkpoint = { x: 300 + Math.random() * (WORLD - 600), y: 300 + Math.random() * (WORLD - 600) };
+      }
+
+      // Pickups
+      for (let i = pickups.length - 1; i >= 0; i--) {
+        const p = pickups[i];
+        if (Math.hypot(player.x - p.x, player.y - p.y) < 34) {
+          if (p.type === 'cash') player.money += 100;
+          if (p.type === 'hp') player.hp = Math.min(100, player.hp + 30);
+          if (p.type === 'armor') player.armor = Math.min(100, player.armor + 40);
+          if (p.type === 'star') player.wanted = Math.max(0, player.wanted - 1);
+          pickups.splice(i, 1);
+        }
+      }
+
+      // Police AI & Traffic
+      for (const c of cars) {
+        if (c === player.inCar) continue;
+        if (c.isPolice && player.wanted > 0) {
+          const ang = Math.atan2(player.y - c.y, player.x - c.x);
+          c.angle = ang;
+          c.speed = 4.2 + player.wanted * 0.55;
+          c.x += Math.cos(c.angle) * c.speed;
+          c.y += Math.sin(c.angle) * c.speed;
+          if (Math.hypot(c.x - player.x, c.y - player.y) < 36) {
+            if (player.armor > 0) player.armor -= 0.4;
+            else player.hp -= 0.4;
+          }
+        } else {
+          c.x += Math.cos(c.angle) * 1.4;
+          c.y += Math.sin(c.angle) * 1.4;
+          if (c.x < 150 || c.x > WORLD - 150 || c.y < 150 || c.y > WORLD - 150) c.angle += Math.PI;
+        }
+      }
+
+      // Pedestrians
+      for (const ped of peds) {
+        ped.x += Math.cos(ped.angle) * 0.8;
+        ped.y += Math.sin(ped.angle) * 0.8;
+        if (Math.random() < 0.02) ped.angle += (Math.random() - 0.5) * 1.5;
+        if (player.inCar && Math.abs(player.inCar.speed) > 2 && Math.hypot(ped.x - player.x, ped.y - player.y) < 30) {
+          addExplosion(ped.x, ped.y, '#ff2a55', 14);
+          ped.x = 300 + Math.random() * (WORLD - 600);
+          ped.y = 300 + Math.random() * (WORLD - 600);
+          player.wanted = Math.min(5, player.wanted + 1);
+        }
+      }
+
+      // Bullets
+      for (let i = bullets.length - 1; i >= 0; i--) {
+        const b = bullets[i];
+        b.x += b.vx; b.y += b.vy; b.life--;
+        let hit = false;
+        for (const ped of peds) {
+          if (Math.hypot(b.x - ped.x, b.y - ped.y) < 20) {
+            hit = true;
+            addExplosion(ped.x, ped.y, '#ff2a55', 15);
+            ped.x = 300 + Math.random() * (WORLD - 600);
+            player.money += 25;
+            player.wanted = Math.min(5, player.wanted + 1);
+          }
+        }
+        for (const c of cars) {
+          if (c !== player.inCar && Math.hypot(b.x - c.x, b.y - c.y) < 28) {
+            hit = true;
+            c.hp -= b.spec.dmg;
+            if (c.hp <= 0) {
+              addExplosion(c.x, c.y, '#ff7b00', 35);
+              c.hp = 120;
+              c.x = 300 + Math.random() * (WORLD - 600);
+              player.money += 75;
+              player.wanted = Math.min(5, player.wanted + 1);
+            }
+          }
+        }
+        if (hit || b.life <= 0) {
+          if (b.spec.boom) addExplosion(b.x, b.y, '#ff4500', 40);
+          bullets.splice(i, 1);
+        }
+      }
+
+      // Particles
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const pt = particles[i];
+        pt.x += pt.vx; pt.y += pt.vy; pt.life--;
+        if (pt.life <= 0) particles.splice(i, 1);
+      }
+
+      if (player.hp <= 0) {
+        player.hp = 100; player.armor = 50; player.wanted = 0;
+        player.money = Math.max(0, player.money - 150);
+        player.inCar = null;
+        player.x = 1400; player.y = 1400;
+      }
+
+      updateHUD();
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const camX = player.x - canvas.width / 2;
+      const camY = player.y - canvas.height / 2;
+
+      ctx.save();
+      ctx.translate(-camX, -camY);
+
+      // Ocean & Beach
+      ctx.fillStyle = '#006994';
+      ctx.fillRect(0, 0, WORLD, WORLD);
+      ctx.fillStyle = '#f4d08a';
+      ctx.fillRect(90, 90, WORLD - 180, WORLD - 180);
+
+      // City Asphalt
+      ctx.fillStyle = '#1c1829';
+      ctx.fillRect(220, 220, WORLD - 440, WORLD - 440);
+
+      // Neon Grid Roads & City Blocks
+      ctx.strokeStyle = '#ff2a85';
+      ctx.lineWidth = 3;
+      for (let x = 220; x <= WORLD - 220; x += 260) {
+        ctx.beginPath(); ctx.moveTo(x, 220); ctx.lineTo(x, WORLD - 220); ctx.stroke();
+      }
+      for (let y = 220; y <= WORLD - 220; y += 260) {
+        ctx.beginPath(); ctx.moveTo(220, y); ctx.lineTo(WORLD - 220, y); ctx.stroke();
+      }
+
+      // Checkpoint
+      ctx.beginPath();
+      ctx.arc(checkpoint.x, checkpoint.y, 42, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 230, 0, 0.25)';
+      ctx.fill();
+      ctx.strokeStyle = '#ffe600';
+      ctx.lineWidth = 4;
+      ctx.stroke();
+
+      // Pickups
+      for (const p of pickups) {
+        ctx.font = '20px Arial';
+        ctx.textAlign = 'center';
+        const icon = p.type === 'cash' ? '💵' : p.type === 'hp' ? '❤️' : p.type === 'armor' ? '🛡️' : '⭐';
+        ctx.fillText(icon, p.x, p.y);
+      }
+
+      // Pedestrians
+      for (const ped of peds) {
+        ctx.fillStyle = ped.color;
+        ctx.beginPath(); ctx.arc(ped.x, ped.y, 8, 0, Math.PI * 2); ctx.fill();
+      }
+
+      // Cars
+      for (const c of cars) {
+        ctx.save();
+        ctx.translate(c.x, c.y);
+        ctx.rotate(c.angle);
+        ctx.fillStyle = c.isPolice ? '#111827' : c.color;
+        ctx.fillRect(-24, -13, 48, 26);
+        ctx.fillStyle = '#00f0ff';
+        ctx.fillRect(4, -10, 12, 20);
+        if (c.isPolice) {
+          ctx.fillStyle = (Date.now() % 300 < 150) ? '#ff0033' : '#0088ff';
+          ctx.fillRect(-4, -11, 6, 22);
+        }
+        ctx.restore();
+      }
+
+      // Player (on foot)
+      if (!player.inCar) {
+        ctx.save();
+        ctx.translate(player.x, player.y);
+        ctx.rotate(player.angle);
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath(); ctx.arc(0, 0, 10, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#ff2a85';
+        ctx.fillRect(4, -3, 12, 6);
+        ctx.restore();
+      }
+
+      // Bullets & Particles
+      for (const b of bullets) {
+        ctx.fillStyle = b.spec.color;
+        ctx.beginPath(); ctx.arc(b.x, b.y, b.spec.radius, 0, Math.PI * 2); ctx.fill();
+      }
+      for (const pt of particles) {
+        ctx.fillStyle = pt.color;
+        ctx.globalAlpha = pt.life / 30;
+        ctx.beginPath(); ctx.arc(pt.x, pt.y, 5, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+
+      ctx.restore();
+
+      // Radar
+      rctx.clearRect(0, 0, 115, 115);
+      rctx.save();
+      rctx.beginPath(); rctx.arc(57.5, 57.5, 55, 0, Math.PI * 2); rctx.clip();
+      rctx.fillStyle = '#0a0418'; rctx.fillRect(0, 0, 115, 115);
+      const scale = 115 / WORLD;
+      rctx.fillStyle = '#ffe600';
+      rctx.beginPath(); rctx.arc(checkpoint.x * scale, checkpoint.y * scale, 4, 0, Math.PI * 2); rctx.fill();
+      for (const c of cars) {
+        rctx.fillStyle = c.isPolice ? '#ff2a55' : '#00f0ff';
+        rctx.fillRect(c.x * scale - 1.5, c.y * scale - 1.5, 3, 3);
+      }
+      rctx.fillStyle = '#39ff14';
+      rctx.beginPath(); rctx.arc(player.x * scale, player.y * scale, 3.5, 0, Math.PI * 2); rctx.fill();
+      rctx.restore();
+    }
+
+    function loop() {
+      if (!running) return;
+      update();
+      draw();
+      requestAnimationFrame(loop);
+    }
+  </script>
+</body>
+</html>
